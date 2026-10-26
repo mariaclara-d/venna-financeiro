@@ -1,19 +1,17 @@
-import sqlite3
-from pathlib import Path
 from datetime import date
 import pandas as pd
+import psycopg2
 import streamlit as st
 
-DB = Path(__file__).with_name("venna_financeiro.db")
 st.set_page_config(page_title="VENNA – Custos de Abertura", page_icon="💎", layout="centered")
 
 def db():
-    return sqlite3.connect(DB)
+    return psycopg2.connect(st.secrets["DATABASE_URL"])
 
 def init():
     with db() as c:
-        c.execute("""CREATE TABLE IF NOT EXISTS custos(
-            id INTEGER PRIMARY KEY,
+        c.cursor().execute("""CREATE TABLE IF NOT EXISTS custos(
+            id SERIAL PRIMARY KEY,
             data TEXT,
             categoria TEXT,
             descricao TEXT,
@@ -94,8 +92,8 @@ elif pagina == "Novo custo":
             st.error("Informe uma descrição e um valor válido (ex.: 1500,00).")
         else:
             with db() as c:
-                c.execute(
-                    "INSERT INTO custos(data,categoria,descricao,fornecedor,valor,status,observacoes) VALUES(?,?,?,?,?,?,?)",
+                c.cursor().execute(
+                    "INSERT INTO custos(data,categoria,descricao,fornecedor,valor,status,observacoes) VALUES(%s,%s,%s,%s,%s,%s,%s)",
                     (st.session_state.data.isoformat(), st.session_state.categoria,
                      st.session_state.descricao.strip(), st.session_state.fornecedor.strip(),
                      valor_float, st.session_state.status, st.session_state.obs.strip()),
@@ -136,11 +134,12 @@ else:
 
         if st.button("Salvar alterações", type="primary"):
             with db() as c:
+                cur = c.cursor()
                 for _, row in editado.iterrows():
                     data_str = row.data.isoformat() if hasattr(row.data, "isoformat") else str(row.data)[:10]
-                    c.execute(
-                        """UPDATE custos SET data=?, categoria=?, descricao=?, fornecedor=?,
-                        valor=?, status=?, observacoes=? WHERE id=?""",
+                    cur.execute(
+                        """UPDATE custos SET data=%s, categoria=%s, descricao=%s, fornecedor=%s,
+                        valor=%s, status=%s, observacoes=%s WHERE id=%s""",
                         (data_str, row.categoria, row.descricao, row.fornecedor,
                          row.valor, row.status, row.observacoes, int(row.id)),
                     )
