@@ -3,16 +3,7 @@ import pandas as pd
 import psycopg2
 import streamlit as st
 
-st.set_page_config(page_title="VENNA – Custos de Abertura", page_icon="V", layout="wide")
-
-st.markdown("""
-<style>
-[data-testid="stSidebar"] { background-color: #0f0f0f; }
-[data-testid="stSidebar"] * { color: #ffffff !important; }
-[data-testid="stMetricValue"] { font-size: 1.6rem; font-weight: 700; }
-div[data-testid="stMetric"] { background: #f9f9f9; border-radius: 12px; padding: 16px; }
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="VENNA – Custos de Abertura", page_icon="V", layout="centered")
 
 def db():
     return psycopg2.connect(st.secrets["DATABASE_URL"])
@@ -54,37 +45,23 @@ if pagina == "Painel":
 
     pago = dados.loc[dados.status == "Pago", "valor"].sum() if not dados.empty else 0
     pendente = dados.loc[dados.status == "Pendente", "valor"].sum() if not dados.empty else 0
-    cancelado = dados.loc[dados.status == "Cancelado", "valor"].sum() if not dados.empty else 0
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     col1.metric("Total pago", brl(pago))
     col2.metric("Total pendente", brl(pendente))
-    col3.metric("Total cancelado", brl(cancelado))
-    col4.metric("Total geral", brl(pago + pendente))
+    col3.metric("Total geral", brl(pago + pendente))
 
-    if not dados.empty:
-        st.divider()
-        col1, col2 = st.columns(2)
+    st.divider()
+    st.subheader("Últimos registros")
 
-        with col1:
-            st.subheader("Gastos por categoria")
-            por_categoria = dados.groupby("categoria")["valor"].sum().sort_values(ascending=False)
-            st.bar_chart(por_categoria)
-
-        with col2:
-            st.subheader("Distribuição por status")
-            por_status = dados.groupby("status")["valor"].sum()
-            st.bar_chart(por_status)
-
-        st.divider()
-        st.subheader("Últimos registros")
+    if dados.empty:
+        st.info("Nenhum custo registrado ainda.")
+    else:
         st.dataframe(
             dados.sort_values("id", ascending=False).head(10)[["data", "categoria", "descricao", "fornecedor", "valor", "status"]],
             use_container_width=True,
             hide_index=True,
         )
-    else:
-        st.info("Nenhum custo registrado ainda.")
 
 elif pagina == "Novo custo":
     st.subheader("Registrar custo")
