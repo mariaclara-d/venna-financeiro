@@ -127,6 +127,7 @@ else:
             exibir.reset_index(drop=True),
             use_container_width=True,
             hide_index=True,
+            num_rows="dynamic",
             column_config={
                 "id": st.column_config.NumberColumn("ID", disabled=True),
                 "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
@@ -140,9 +141,16 @@ else:
         )
 
         if st.button("Salvar alterações", type="primary"):
+            ids_editados = set(editado["id"].dropna().astype(int))
+            ids_originais = set(exibir["id"].astype(int))
+            ids_deletados = ids_originais - ids_editados
             with db() as c:
                 cur = c.cursor()
+                for id_del in ids_deletados:
+                    cur.execute("DELETE FROM custos WHERE id=%s", (id_del,))
                 for _, row in editado.iterrows():
+                    if pd.isna(row.id):
+                        continue
                     data_str = row.data.isoformat() if hasattr(row.data, "isoformat") else str(row.data)[:10]
                     cur.execute(
                         """UPDATE custos SET data=%s, categoria=%s, descricao=%s, fornecedor=%s,
